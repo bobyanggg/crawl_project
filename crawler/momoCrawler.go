@@ -78,7 +78,7 @@ func (q *MomoQuery) Crawl(ctx context.Context, page int, finishQuery chan bool, 
 	})
 
 	c.OnRequest(func(r *colly.Request) {
-		fmt.Println("Visiting: ", r.URL.String())
+		log.Println("Visiting: ", r.URL.String())
 	})
 
 	err = c.Visit(startUrl)
@@ -86,7 +86,6 @@ func (q *MomoQuery) Crawl(ctx context.Context, page int, finishQuery chan bool, 
 		log.Println(errors.Wrapf(err, "failed to visit %s", startUrl))
 	}
 	wgJob.Done()
-
 }
 
 func (q *MomoQuery) FindMaxPage(ctx context.Context, totalWebProduct int) (int, error) {
@@ -95,7 +94,6 @@ func (q *MomoQuery) FindMaxPage(ctx context.Context, totalWebProduct int) (int, 
 	starturl := fmt.Sprintf("https://www.momoshop.com.tw/search/searchShop.jsp?keyword=%s&searchType=1&curPage=%d", q.GetQuerySrc().Keyword, 1)
 	selector := "#BodyBase > div.bt_2_layout.searchbox.searchListArea.selectedtop > div.pageArea.topPage > dl > dt > span:nth-child(2)"
 	sel := `document.querySelector("body")`
-	fmt.Println("getting maximum page @", starturl)
 
 	html, err := GetHttpHtmlContent(ctx, starturl, selector, sel)
 	if err != nil {

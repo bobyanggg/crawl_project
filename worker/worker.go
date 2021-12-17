@@ -36,10 +36,8 @@ var webs = []crawler.Web{crawler.Momo, crawler.Pchome}
 // Queue also listen to new product channel and send product information back to server.
 // Queue listens to ctx from server, if ctx timeout, Queue calls cleanupCancel to cleanup
 func Queue(ctx context.Context, keyWord string, pProduct chan pb.UserResponse) {
-	cleanupCtx, cleanupCancel := context.WithCancel(context.Background())
-	// cleanupCtx, cleanupCancel = context.WithDeadline(cleanupCtx, cleanupCtx.Deadline())
-	defer cleanupCancel()
-	// load worker config
+	fmt.Println("---------------start-------------")
+
 	jsonFile, err := os.Open("../config/worker.json")
 	if err != nil {
 		log.Fatal("faile to open json fail for creating worker: ", err)
@@ -55,13 +53,13 @@ func Queue(ctx context.Context, keyWord string, pProduct chan pb.UserResponse) {
 		return
 	}
 
-	// jobsChan := make(map[crawler.Web]chan *Job)
 	newProducts := make(chan *sql.Product, workerConfig.MaxProduct)
+	cleanupCtx, cleanupCancel := context.WithCancel(context.Background())
+	defer func() {
+		cleanupCancel()
+		close(newProducts)
 
-	// // generate job channel for each web
-	// for _, val := range webs {
-	// 	jobsChan[val] = make(chan *Job, workerConfig.WorkerNum)
-	// }
+	}()
 
 	// listen to ctx from server, if timeout, call cleanup function
 	go func() {
@@ -89,60 +87,68 @@ func Queue(ctx context.Context, keyWord string, pProduct chan pb.UserResponse) {
 				return
 			}
 		}
-
 	}()
 
 	wgJob := &sync.WaitGroup{}
 	// call send tp send jobs
 	anyResponse := false
+
+	wgSend := &sync.WaitGroup{}
+	wgSend.Add(len(webs))
 	for _, web := range webs {
-		var wc crawler.Crawler
-		switch web {
-		case crawler.Momo:
-			wc = crawler.NewMomoQuery(keyWord)
-		case crawler.Pchome:
-			wc = crawler.NewPChomeQuery(keyWord)
-		}
+		go func(web crawler.Web) {
+			var wc crawler.Crawler
+			switch web {
+			case crawler.Momo:
+				wc = crawler.NewMomoQuery(keyWord)
+			case crawler.Pchome:
+				wc = crawler.NewPChomeQuery(keyWord)
+			}
 
-		jobsChan := make(chan *Job, workerConfig.WorkerNum)
-		// responsible for start worker
-		go startWorker(cleanupCtx, wc, jobsChan, workerConfig)
+			jobsChan := make(chan *Job, workerConfig.WorkerNum)
+			// responsible for start worker
+			go startWorker(cleanupCtx, wc, jobsChan, workerConfig)
 
-		err := send(ctx, wc, wgJob, newProducts, jobsChan, workerConfig)
-		if err == nil {
-			anyResponse = true
-		} else {
-			log.Printf("Failed to get response from %s: %v", web, err)
-		}
+			err := send(ctx, wc, wgJob, newProducts, jobsChan, workerConfig)
+			if err == nil {
+				anyResponse = true
+			} else {
+				log.Printf("Failed to get response from %s: %v", web, err)
+			}
+			wgSend.Done()
+
+		}(web)
 	}
+	wgSend.Wait() //avoid finish before send is finished
 	if !anyResponse {
+		cleanupCancel()
 		return
 	}
 	wgJob.Wait()
-	close(newProducts)
 }
 
 // send function gets the maximum page and puts job into jobchan while looping through pages
 func send(ctx context.Context, wc crawler.Crawler, wgJob *sync.WaitGroup, newProducts chan *sql.Product, jobsChan chan *Job, workerConfig WorkerConfig) error {
+
 	webNum := len(webs)
 	totalWebProduct := workerConfig.MaxProduct / webNum
 
 	qSrc := wc.GetQuerySrc()
 
+	log.Println("peparing to find max page: ", wc.GetQuerySrc().Web)
 	maxPage, err := wc.FindMaxPage(ctx, totalWebProduct)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get max page")
 	}
 
-	go func(maxPage int) {
-		for i := 1; i <= maxPage; i++ {
-			wgJob.Add(1)
-			input := &Job{qSrc.Web, qSrc.Keyword, i, wgJob, newProducts}
-			fmt.Println("In queue", input)
-			jobsChan <- input
-			log.Println("already send input value:", input)
-		}
-	}(maxPage)
+	for i := 1; i <= maxPage; i++ {
+		wgJob.Add(1)
+		input := &Job{qSrc.Web, qSrc.Keyword, i, wgJob, newProducts}
+		fmt.Println("In queue", input)
+		jobsChan <- input
+		log.Println("already send input value:", input)
+	}
+
 	return nil
 }
 
@@ -174,12 +180,10 @@ func worker(ctx context.Context, wc crawler.Crawler, num int, jobsChan chan *Job
 
 // startWorker opens worker.json config, generates worker and jobs channel
 func startWorker(ctx context.Context, wc crawler.Crawler, jobsChan chan *Job, workerConfig WorkerConfig) {
-	fmt.Println("--------------start-------------")
 	totalWorker := workerConfig.WorkerNum
 	sleepTime := workerConfig.SleepTime
 
 	// generate workers for each web
-
 	for i := 0; i < totalWorker; i++ {
 		go worker(ctx, wc, i, jobsChan, sleepTime)
 	}

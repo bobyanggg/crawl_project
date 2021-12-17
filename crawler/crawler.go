@@ -23,6 +23,7 @@ type Web string
 const (
 	Pchome Web = "pchome"
 	Momo       = "momo"
+	Yahoo      = "yahoo"
 )
 
 func newQuery(web Web, keyWord string) *Query {

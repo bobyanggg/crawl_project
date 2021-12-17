@@ -98,7 +98,6 @@ func (q *PChomeQuery) Crawl(ctx context.Context, page int, finishQuery chan bool
 	query.Set("page", fmt.Sprintf("%d", page))
 	request.URL.RawQuery = query.Encode()
 	url := request.URL.String()
-	fmt.Println("pchome: ", url)
 
 	response, err := client.Get(url)
 	if err != nil {
