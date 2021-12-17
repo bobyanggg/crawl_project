@@ -15,7 +15,7 @@ import (
 )
 
 type PChomeQuery struct {
-	keyword string
+	*Query
 }
 
 type PchomeResponse struct {
@@ -33,13 +33,18 @@ type PchomeMaxPageResponse struct {
 	MaxPage int `json:"totalPage"`
 }
 
+const productsPerPagePchome = 20
+
 func NewPChomeQuery(keyword string) *PChomeQuery {
-	return &PChomeQuery{
-		keyword: keyword,
-	}
+	return &PChomeQuery{newQuery(Pchome, keyword)}
 }
 
-func FindMaxPchomePage(ctx context.Context, keyword string) (int, error) {
+func (q *PChomeQuery) GetQuerySrc() *Query {
+	return q.Query
+}
+
+func (q *PChomeQuery) FindMaxPage(ctx context.Context, totalWebProduct int) (int, error) {
+	calPage := totalWebProduct / productsPerPagePchome
 	var client = &http.Client{Timeout: 10 * time.Second}
 
 	request, err := http.NewRequest("GET", "http://ecshweb.pchome.com.tw/search/v3.3/all/results?sort=rnk", nil)
@@ -49,7 +54,7 @@ func FindMaxPchomePage(ctx context.Context, keyword string) (int, error) {
 	}
 
 	query := request.URL.Query()
-	query.Add("q", keyword)
+	query.Add("q", q.GetQuerySrc().Keyword)
 
 	var maxPage PchomeMaxPageResponse
 	request.URL.RawQuery = query.Encode()
@@ -65,10 +70,20 @@ func FindMaxPchomePage(ctx context.Context, keyword string) (int, error) {
 	}
 
 	defer response.Body.Close()
+
+	log.Printf("total page of keyword %s in %s is: %d\n", q.Keyword, q.Web, maxPage.MaxPage)
+	log.Printf("max page allowed: %d", calPage)
+
+	if calPage < maxPage.MaxPage {
+		maxPage.MaxPage = calPage
+	}
+
 	return maxPage.MaxPage, nil
 }
 
-func (q *PChomeQuery) Crawl(ctx context.Context, page int, finishQuery chan bool, newProducts chan *sql.Product, wgJob *sync.WaitGroup) error {
+func (q *PChomeQuery) Crawl(ctx context.Context, page int, finishQuery chan bool, newProducts chan *sql.Product, wgJob *sync.WaitGroup) {
+	qSrc := q.GetQuerySrc()
+
 	var client = &http.Client{Timeout: 10 * time.Second}
 
 	request, err := http.NewRequestWithContext(ctx, "GET", "http://ecshweb.pchome.com.tw/search/v3.3/all/results?sort=rnk", nil)
@@ -77,7 +92,7 @@ func (q *PChomeQuery) Crawl(ctx context.Context, page int, finishQuery chan bool
 	}
 
 	query := request.URL.Query()
-	query.Add("q", q.keyword)
+	query.Add("q", qSrc.Keyword)
 
 	var result PchomeResponse
 	query.Set("page", fmt.Sprintf("%d", page))
@@ -91,14 +106,14 @@ func (q *PChomeQuery) Crawl(ctx context.Context, page int, finishQuery chan bool
 	}
 
 	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
-		log.Println(errors.Wrapf(err, "can not decode JSON form PChome for %s", q.keyword))
+		log.Println(errors.Wrapf(err, "can not decode JSON form PChome for %s", qSrc.Keyword))
 	}
 
 	defer response.Body.Close()
 
 	for _, prod := range result.Prods {
 		tempProduct := sql.Product{
-			Word:       q.keyword,
+			Word:       qSrc.Keyword,
 			ProductID:  prod.Id,
 			Name:       prod.Name,
 			Price:      prod.Price,
@@ -108,5 +123,4 @@ func (q *PChomeQuery) Crawl(ctx context.Context, page int, finishQuery chan bool
 		newProducts <- &tempProduct
 	}
 	wgJob.Done()
-	return nil
 }

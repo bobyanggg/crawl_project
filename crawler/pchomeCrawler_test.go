@@ -2,13 +2,15 @@ package crawler
 
 import (
 	"context"
+	"math"
 	"testing"
 )
 
 func TestFindMaxPchomePage(t *testing.T) {
-	keyword := "iphone13"
 	ctx := context.Background()
-	page, err := FindMaxPchomePage(ctx, keyword)
+	keyword := "iphone13"
+	q := NewPChomeQuery(keyword)
+	page, err := q.FindMaxPage(ctx, math.MaxInt32)
 	if err != nil {
 		t.Log("err: ", err)
 	}

@@ -20,25 +20,30 @@ import (
 )
 
 type MomoQuery struct {
-	keyword string
-}
-
-func NewMomoQuery(keyword string) *MomoQuery {
-	return &MomoQuery{
-		keyword: keyword,
-	}
+	*Query
 }
 
 const absoluteURL string = "https://m.momoshop.com.tw/"
 
-func (q *MomoQuery) Crawl(ctx context.Context, page int, finishQuery chan bool, newProducts chan *sql.Product, wgJob *sync.WaitGroup) error {
+const productsPerPageMomo = 20
 
+func NewMomoQuery(keyword string) *MomoQuery {
+	return &MomoQuery{newQuery(Momo, keyword)}
+}
+
+func (q *MomoQuery) GetQuerySrc() *Query {
+	return q.Query
+}
+
+func (q *MomoQuery) Crawl(ctx context.Context, page int, finishQuery chan bool, newProducts chan *sql.Product, wgJob *sync.WaitGroup) {
+
+	qSrc := q.GetQuerySrc()
 	request, err := http.NewRequestWithContext(ctx, "GET", "https://m.momoshop.com.tw/search.momo", nil)
 	if err != nil {
 		log.Println(errors.Wrap(err, "Can not generate request"))
 	}
 	query := request.URL.Query()
-	query.Add("searchKeyword", q.keyword)
+	query.Add("searchKeyword", qSrc.Keyword)
 	query.Set("curPage", fmt.Sprintf("%d", page))
 	request.URL.RawQuery = query.Encode()
 	startUrl := request.URL.String()
@@ -50,7 +55,7 @@ func (q *MomoQuery) Crawl(ctx context.Context, page int, finishQuery chan bool, 
 	c.OnHTML("li[class=goodsItemLi]", func(e *colly.HTMLElement) {
 		tempProduct := sql.Product{}
 		tempProduct.Name = e.ChildText("h3.prdName")
-		tempProduct.Word = q.keyword
+		tempProduct.Word = qSrc.Keyword
 		tempPrice, err := strconv.Atoi(e.ChildText("b.price"))
 		if err != nil {
 			log.Println(errors.Wrapf(err, "failed to get price of %s", tempProduct.Name))
@@ -78,17 +83,16 @@ func (q *MomoQuery) Crawl(ctx context.Context, page int, finishQuery chan bool, 
 
 	err = c.Visit(startUrl)
 	if err != nil {
-		return errors.Wrap(err, "fail to visit website")
+		log.Println(errors.Wrapf(err, "failed to visit %s", startUrl))
 	}
 	wgJob.Done()
 
-	return nil
-
 }
 
-func FindMaxMomoPage(ctx context.Context, keyword string) (int, error) {
+func (q *MomoQuery) FindMaxPage(ctx context.Context, totalWebProduct int) (int, error) {
+	calPage := totalWebProduct / productsPerPageMomo
 	totalPageResult := 0
-	starturl := fmt.Sprintf("https://www.momoshop.com.tw/search/searchShop.jsp?keyword=%s&searchType=1&curPage=%d", keyword, 1)
+	starturl := fmt.Sprintf("https://www.momoshop.com.tw/search/searchShop.jsp?keyword=%s&searchType=1&curPage=%d", q.GetQuerySrc().Keyword, 1)
 	selector := "#BodyBase > div.bt_2_layout.searchbox.searchListArea.selectedtop > div.pageArea.topPage > dl > dt > span:nth-child(2)"
 	sel := `document.querySelector("body")`
 	fmt.Println("getting maximum page @", starturl)
@@ -108,6 +112,13 @@ func FindMaxMomoPage(ctx context.Context, keyword string) (int, error) {
 		totalPage, _ := strconv.Atoi(pageStr[1])
 		totalPageResult = totalPage
 	})
+	log.Printf("total page of keyword %s in %s is: %d\n", q.Keyword, q.Web, totalPageResult)
+	log.Printf("max page allowed: %d", calPage)
+
+	if calPage < totalPageResult {
+		totalPageResult = calPage
+	}
+
 	return totalPageResult, nil
 }
 

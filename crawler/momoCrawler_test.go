@@ -3,6 +3,7 @@ package crawler
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 
 func Test_Crawl_Ipad(t *testing.T) {
 	ctx := context.Background()
-	m := MomoQuery{keyword: "ipad"}
+	m := NewMomoQuery("ipad")
 	page := 1
 	finishQuery := make(chan bool)
 	newProducts := make(chan *sql.Product)
@@ -34,7 +35,8 @@ func Test_Crawl_Ipad(t *testing.T) {
 func Test_FindMaxMomoPage_Ipad(t *testing.T) {
 	ctx := context.Background()
 	keyword := "ipad"
-	maxPage, err := FindMaxMomoPage(ctx, keyword)
+	q := NewMomoQuery(keyword)
+	maxPage, err := q.FindMaxPage(ctx, math.MaxInt32)
 	if err != nil {
 		t.Error("error in find momopage")
 	}

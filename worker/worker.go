@@ -22,14 +22,14 @@ type WorkerConfig struct {
 	SleepTime  int `json:"sleepTime"`
 }
 type Job struct {
-	web         string
+	web         crawler.Web
 	keyword     string
 	page        int
 	wgJob       *sync.WaitGroup
 	newProducts chan *sql.Product
 }
 
-var webs = []string{"momo", "pchome"}
+var webs = []crawler.Web{crawler.Momo, crawler.Pchome}
 
 // Queue creates job Chan and newProduct Chan.
 // Workers are started in this function.
@@ -55,16 +55,13 @@ func Queue(ctx context.Context, keyWord string, pProduct chan pb.UserResponse) {
 		return
 	}
 
-	jobsChan := make(map[string]chan *Job)
+	// jobsChan := make(map[crawler.Web]chan *Job)
 	newProducts := make(chan *sql.Product, workerConfig.MaxProduct)
 
-	// generate job channel for each web
-	for _, val := range webs {
-		jobsChan[val] = make(chan *Job, workerConfig.WorkerNum)
-	}
-
-	// responsible for start worker
-	go startWorker(cleanupCtx, jobsChan, workerConfig)
+	// // generate job channel for each web
+	// for _, val := range webs {
+	// 	jobsChan[val] = make(chan *Job, workerConfig.WorkerNum)
+	// }
 
 	// listen to ctx from server, if timeout, call cleanup function
 	go func() {
@@ -99,11 +96,23 @@ func Queue(ctx context.Context, keyWord string, pProduct chan pb.UserResponse) {
 	// call send tp send jobs
 	anyResponse := false
 	for _, web := range webs {
-		err := send(ctx, web, keyWord, wgJob, newProducts, jobsChan, workerConfig)
+		var wc crawler.Crawler
+		switch web {
+		case crawler.Momo:
+			wc = crawler.NewMomoQuery(keyWord)
+		case crawler.Pchome:
+			wc = crawler.NewPChomeQuery(keyWord)
+		}
+
+		jobsChan := make(chan *Job, workerConfig.WorkerNum)
+		// responsible for start worker
+		go startWorker(cleanupCtx, wc, jobsChan, workerConfig)
+
+		err := send(ctx, wc, wgJob, newProducts, jobsChan, workerConfig)
 		if err == nil {
 			anyResponse = true
 		} else {
-			log.Printf("Failed to get respons from %s: %v", web, err)
+			log.Printf("Failed to get response from %s: %v", web, err)
 		}
 	}
 	if !anyResponse {
@@ -114,100 +123,65 @@ func Queue(ctx context.Context, keyWord string, pProduct chan pb.UserResponse) {
 }
 
 // send function gets the maximum page and puts job into jobchan while looping through pages
-func send(ctx context.Context, web, keyWord string, wgJob *sync.WaitGroup, newProducts chan *sql.Product, jobsChan map[string]chan *Job, workerConfig WorkerConfig) error {
-	var maxPage int
+func send(ctx context.Context, wc crawler.Crawler, wgJob *sync.WaitGroup, newProducts chan *sql.Product, jobsChan chan *Job, workerConfig WorkerConfig) error {
 	webNum := len(webs)
 	totalWebProduct := workerConfig.MaxProduct / webNum
 
-	// TODO : make a interface or merge existing?
-	switch web {
-	case "momo":
-		calPage := totalWebProduct/20 + 1
-		maxMomo, err := crawler.FindMaxMomoPage(ctx, keyWord)
-		if err != nil {
-			return errors.Wrap(err, "failed to find")
-		}
-		if calPage > maxMomo {
-			maxPage = maxMomo
-		} else {
-			maxPage = calPage
-		}
-	case "pchome":
-		calPage := totalWebProduct/20 + 1
-		maxPchome, err := crawler.FindMaxPchomePage(ctx, keyWord)
-		if err != nil {
-			return errors.Wrap(err, "failed to find")
-		}
-		if calPage > maxPchome {
-			maxPage = maxPchome
-		} else {
-			maxPage = calPage
-		}
+	qSrc := wc.GetQuerySrc()
+
+	maxPage, err := wc.FindMaxPage(ctx, totalWebProduct)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get max page")
 	}
 
 	go func(maxPage int) {
 		for i := 1; i <= maxPage; i++ {
 			wgJob.Add(1)
-			input := &Job{web, keyWord, i, wgJob, newProducts}
+			input := &Job{qSrc.Web, qSrc.Keyword, i, wgJob, newProducts}
 			fmt.Println("In queue", input)
-			jobsChan[web] <- input
+			jobsChan <- input
 			log.Println("already send input value:", input)
 		}
 	}(maxPage)
 	return nil
 }
 
-// process creates query instance, then calls crawl function
-func process(ctx context.Context, num int, job Job, newProducts chan *sql.Product, sleepTime int) {
-
-	// n := getRandomTime()
-	var wc crawler.Crawler
-	finishQuery := make(chan bool)
-	log.Printf("%d starting on %v, Sleeping %d seconds...\n", num, job, sleepTime)
-
-	switch job.web {
-	case "momo":
-		wc = crawler.NewMomoQuery(job.keyword)
-	case "pchome":
-		wc = crawler.NewPChomeQuery(job.keyword)
-	}
-	go wc.Crawl(ctx, job.page, finishQuery, newProducts, job.wgJob)
-	log.Println("finished", job.web, job.page)
-	time.Sleep(time.Duration(sleepTime) * time.Second)
-}
-
 // worker starts workers that listen to jobsChan in background
-func worker(ctx context.Context, num int, web string, jobsChan map[string]chan *Job, sleepTime int) {
+func worker(ctx context.Context, wc crawler.Crawler, num int, jobsChan chan *Job, sleepTime int) {
 
-	log.Println("start the worker", num, web)
+	log.Println("start the worker", num, wc.GetQuerySrc().Web)
 
 	for {
 		select {
-		case job := <-jobsChan[web]:
-			process(ctx, num, *job, job.newProducts, sleepTime)
+		case job := <-jobsChan:
+			// n := getRandomTime()
+			finishQuery := make(chan bool)
+			log.Printf("%d starting on %v, Sleeping %d seconds...\n", num, job, sleepTime)
+
+			go wc.Crawl(ctx, job.page, finishQuery, job.newProducts, job.wgJob)
+			log.Println("finished", job.web, job.page)
+			time.Sleep(time.Duration(sleepTime) * time.Second)
 			// close workers
 		case <-ctx.Done():
 			if ctx.Err() != context.Canceled {
 				log.Println("context err: ", ctx.Err())
 			}
-			log.Println("closing worker.....", num, web)
+			log.Println("closing worker.....", num, wc.GetQuerySrc().Web)
 			return
 		}
 	}
 }
 
 // startWorker opens worker.json config, generates worker and jobs channel
-func startWorker(ctx context.Context, jobsChan map[string]chan *Job, workerConfig WorkerConfig) {
+func startWorker(ctx context.Context, wc crawler.Crawler, jobsChan chan *Job, workerConfig WorkerConfig) {
 	fmt.Println("--------------start-------------")
 	totalWorker := workerConfig.WorkerNum
 	sleepTime := workerConfig.SleepTime
 
 	// generate workers for each web
-	go func() {
-		for _, web := range webs {
-			for i := 0; i < totalWorker; i++ {
-				go worker(ctx, i, web, jobsChan, sleepTime)
-			}
-		}
-	}()
+
+	for i := 0; i < totalWorker; i++ {
+		go worker(ctx, wc, i, jobsChan, sleepTime)
+	}
+
 }
