@@ -1,0 +1,5 @@
+{
+    "maxProduct":1000,
+    "workerNum":2,
+    "sleepTime":2
+}
