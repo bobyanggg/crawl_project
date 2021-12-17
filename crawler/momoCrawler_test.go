@@ -1,6 +1,7 @@
-package worker
+package crawler
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"testing"
@@ -9,6 +10,7 @@ import (
 )
 
 func Test_Crawl_Ipad(t *testing.T) {
+	ctx := context.Background()
 	m := MomoQuery{keyword: "ipad"}
 	page := 1
 	finishQuery := make(chan bool)
@@ -23,15 +25,19 @@ func Test_Crawl_Ipad(t *testing.T) {
 
 	}()
 
-	m.Crawl(page, finishQuery, newProducts, wgJob)
+	m.Crawl(ctx, page, finishQuery, newProducts, wgJob)
 	fmt.Println(results)
 	if len(results) == 0 {
 		t.Error("error in crawl")
 	}
 }
 func Test_FindMaxMomoPage_Ipad(t *testing.T) {
+	ctx := context.Background()
 	keyword := "ipad"
-	maxPage := FindMaxMomoPage(keyword)
+	maxPage, err := FindMaxMomoPage(ctx, keyword)
+	if err != nil {
+		t.Error("error in find momopage")
+	}
 	if maxPage < 50 {
 		t.Error("error in find momopage,page=", maxPage)
 	}

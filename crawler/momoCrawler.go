@@ -1,4 +1,4 @@
-package worker
+package crawler
 
 import (
 	"context"
@@ -31,9 +31,9 @@ func NewMomoQuery(keyword string) *MomoQuery {
 
 const absoluteURL string = "https://m.momoshop.com.tw/"
 
-func (q *MomoQuery) Crawl(page int, finishQuery chan bool, newProducts chan *sql.Product, wgJob *sync.WaitGroup) {
+func (q *MomoQuery) Crawl(ctx context.Context, page int, finishQuery chan bool, newProducts chan *sql.Product, wgJob *sync.WaitGroup) error {
 
-	request, err := http.NewRequest("GET", "https://m.momoshop.com.tw/search.momo", nil)
+	request, err := http.NewRequestWithContext(ctx, "GET", "https://m.momoshop.com.tw/search.momo", nil)
 	if err != nil {
 		log.Println(errors.Wrap(err, "Can not generate request"))
 	}
@@ -70,7 +70,6 @@ func (q *MomoQuery) Crawl(page int, finishQuery chan bool, newProducts chan *sql
 			log.Println(errors.Wrapf(err, "failed to find Product Url of %s", tempProduct.Name))
 		}
 		newProducts <- &tempProduct
-
 	})
 
 	c.OnRequest(func(r *colly.Request) {
@@ -79,24 +78,29 @@ func (q *MomoQuery) Crawl(page int, finishQuery chan bool, newProducts chan *sql
 
 	err = c.Visit(startUrl)
 	if err != nil {
-		fmt.Println("fail to visit website---------", err)
+		return errors.Wrap(err, "fail to visit website")
 	}
 	wgJob.Done()
 
+	return nil
+
 }
 
-func FindMaxMomoPage(keyword string) int {
+func FindMaxMomoPage(ctx context.Context, keyword string) (int, error) {
 	totalPageResult := 0
 	starturl := fmt.Sprintf("https://www.momoshop.com.tw/search/searchShop.jsp?keyword=%s&searchType=1&curPage=%d", keyword, 1)
 	selector := "#BodyBase > div.bt_2_layout.searchbox.searchListArea.selectedtop > div.pageArea.topPage > dl > dt > span:nth-child(2)"
 	sel := `document.querySelector("body")`
 	fmt.Println("getting maximum page @", starturl)
 
-	html, _ := GetHttpHtmlContent(starturl, selector, sel)
+	html, err := GetHttpHtmlContent(ctx, starturl, selector, sel)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to get html element")
+	}
 
 	dom, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
-		log.Println(errors.Wrap(err, "failed to go query"))
+		return 0, errors.Wrap(err, "failed to go query")
 	}
 
 	dom.Find("#BodyBase > div.bt_2_layout.searchbox.searchListArea.selectedtop > div.pageArea.topPage > dl > dt > span:nth-child(2)").Each(func(i int, selection *goquery.Selection) {
@@ -104,10 +108,10 @@ func FindMaxMomoPage(keyword string) int {
 		totalPage, _ := strconv.Atoi(pageStr[1])
 		totalPageResult = totalPage
 	})
-	return totalPageResult
+	return totalPageResult, nil
 }
 
-func GetHttpHtmlContent(url string, selector string, sel interface{}) (string, error) {
+func GetHttpHtmlContent(ctx context.Context, url string, selector string, sel interface{}) (string, error) {
 	options := []chromedp.ExecAllocatorOption{
 		chromedp.Flag("headless", true), // debug using
 		chromedp.Flag("blink-settings", "imagesEnabled=false"),
@@ -116,12 +120,14 @@ func GetHttpHtmlContent(url string, selector string, sel interface{}) (string, e
 	//Initialization parameters, first pass an empty data
 	options = append(chromedp.DefaultExecAllocatorOptions[:], options...)
 
-	c, _ := chromedp.NewExecAllocator(context.Background(), options...)
+	c, _ := chromedp.NewExecAllocator(ctx, options...)
 
 	// create context
 	chromeCtx, _ := chromedp.NewContext(c, chromedp.WithLogf(log.Printf))
 	//Execute an empty task to create a chrome instance in advance
-	chromedp.Run(chromeCtx, make([]chromedp.Action, 0, 1)...)
+	if err := chromedp.Run(chromeCtx, make([]chromedp.Action, 0, 1)...); err != nil {
+		return "", errors.Wrap(err, "failed to create a chrome instance")
+	}
 
 	//Create a context with a timeout of 40s
 	timeoutCtx, cancel := context.WithTimeout(chromeCtx, 40*time.Second)

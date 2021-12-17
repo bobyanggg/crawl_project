@@ -9,9 +9,11 @@ import (
 	"sync"
 	"time"
 
+	"dev/crawl_project/crawler"
 	pb "dev/crawl_project/product"
-
 	"dev/crawl_project/sql"
+
+	"github.com/pkg/errors"
 )
 
 type WorkerConfig struct {
@@ -25,11 +27,6 @@ type Job struct {
 	page        int
 	wgJob       *sync.WaitGroup
 	newProducts chan *sql.Product
-}
-
-type Crawler interface {
-	// Find product information from the website
-	Crawl(page int, finishQuery chan bool, newProducts chan *sql.Product, wgJob *sync.WaitGroup)
 }
 
 var webs = []string{"momo", "pchome"}
@@ -69,28 +66,23 @@ func Queue(ctx context.Context, keyWord string, pProduct chan pb.UserResponse) {
 	// responsible for start worker
 	go startWorker(cleanupCtx, jobsChan, workerConfig)
 
-	// listen to newProducts channel
-	go func() {
-		for product := range newProducts {
-			// Insert the data to the database.
-			product.Word = keyWord
-			if err := sql.Insert(*product); err != nil {
-				log.Println(err)
-			}
-			// Push the data to grpc output.
-			pProduct <- pb.UserResponse{
-				Name:       product.Name,
-				Price:      int32(product.Price),
-				ImageURL:   product.ImageURL,
-				ProductURL: product.ProductURL,
-			}
-		}
-	}()
-
 	// listen to ctx from server, if timeout, call cleanup function
 	go func() {
 		for {
 			select {
+			case product := <-newProducts:
+				// Insert the data to the database.
+				product.Word = keyWord
+				if err := sql.Insert(*product); err != nil {
+					log.Println(err)
+				}
+				// Push the data to grpc output.
+				pProduct <- pb.UserResponse{
+					Name:       product.Name,
+					Price:      int32(product.Price),
+					ImageURL:   product.ImageURL,
+					ProductURL: product.ProductURL,
+				}
 			case <-ctx.Done():
 				if ctx.Err() != context.Canceled {
 					cleanupCancel()
@@ -105,15 +97,24 @@ func Queue(ctx context.Context, keyWord string, pProduct chan pb.UserResponse) {
 
 	wgJob := &sync.WaitGroup{}
 	// call send tp send jobs
+	anyResponse := false
 	for _, web := range webs {
-		send(ctx, web, keyWord, wgJob, newProducts, jobsChan, workerConfig)
+		err := send(ctx, web, keyWord, wgJob, newProducts, jobsChan, workerConfig)
+		if err == nil {
+			anyResponse = true
+		} else {
+			log.Printf("Failed to get respons from %s: %v", web, err)
+		}
+	}
+	if !anyResponse {
+		return
 	}
 	wgJob.Wait()
 	close(newProducts)
 }
 
 // send function gets the maximum page and puts job into jobchan while looping through pages
-func send(ctx context.Context, web, keyWord string, wgJob *sync.WaitGroup, newProducts chan *sql.Product, jobsChan map[string]chan *Job, workerConfig WorkerConfig) {
+func send(ctx context.Context, web, keyWord string, wgJob *sync.WaitGroup, newProducts chan *sql.Product, jobsChan map[string]chan *Job, workerConfig WorkerConfig) error {
 	var maxPage int
 	webNum := len(webs)
 	totalWebProduct := workerConfig.MaxProduct / webNum
@@ -122,7 +123,10 @@ func send(ctx context.Context, web, keyWord string, wgJob *sync.WaitGroup, newPr
 	switch web {
 	case "momo":
 		calPage := totalWebProduct/20 + 1
-		maxMomo := FindMaxMomoPage(keyWord)
+		maxMomo, err := crawler.FindMaxMomoPage(ctx, keyWord)
+		if err != nil {
+			return errors.Wrap(err, "failed to find")
+		}
 		if calPage > maxMomo {
 			maxPage = maxMomo
 		} else {
@@ -130,7 +134,10 @@ func send(ctx context.Context, web, keyWord string, wgJob *sync.WaitGroup, newPr
 		}
 	case "pchome":
 		calPage := totalWebProduct/20 + 1
-		maxPchome := FindMaxPchomePage(keyWord)
+		maxPchome, err := crawler.FindMaxPchomePage(ctx, keyWord)
+		if err != nil {
+			return errors.Wrap(err, "failed to find")
+		}
 		if calPage > maxPchome {
 			maxPage = maxPchome
 		} else {
@@ -147,23 +154,24 @@ func send(ctx context.Context, web, keyWord string, wgJob *sync.WaitGroup, newPr
 			log.Println("already send input value:", input)
 		}
 	}(maxPage)
+	return nil
 }
 
 // process creates query instance, then calls crawl function
-func process(num int, job Job, newProducts chan *sql.Product, sleepTime int) {
+func process(ctx context.Context, num int, job Job, newProducts chan *sql.Product, sleepTime int) {
 
 	// n := getRandomTime()
-	var crawler Crawler
+	var wc crawler.Crawler
 	finishQuery := make(chan bool)
 	log.Printf("%d starting on %v, Sleeping %d seconds...\n", num, job, sleepTime)
 
 	switch job.web {
 	case "momo":
-		crawler = NewMomoQuery(job.keyword)
+		wc = crawler.NewMomoQuery(job.keyword)
 	case "pchome":
-		crawler = NewPChomeQuery(job.keyword)
+		wc = crawler.NewPChomeQuery(job.keyword)
 	}
-	go crawler.Crawl(job.page, finishQuery, newProducts, job.wgJob)
+	go wc.Crawl(ctx, job.page, finishQuery, newProducts, job.wgJob)
 	log.Println("finished", job.web, job.page)
 	time.Sleep(time.Duration(sleepTime) * time.Second)
 }
@@ -176,7 +184,7 @@ func worker(ctx context.Context, num int, web string, jobsChan map[string]chan *
 	for {
 		select {
 		case job := <-jobsChan[web]:
-			process(num, *job, job.newProducts, sleepTime)
+			process(ctx, num, *job, job.newProducts, sleepTime)
 			// close workers
 		case <-ctx.Done():
 			if ctx.Err() != context.Canceled {

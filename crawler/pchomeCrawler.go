@@ -1,4 +1,4 @@
-package worker
+package crawler
 
 import (
 	"encoding/json"
@@ -11,6 +11,7 @@ import (
 	"dev/crawl_project/sql"
 
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 )
 
 type PChomeQuery struct {
@@ -38,7 +39,7 @@ func NewPChomeQuery(keyword string) *PChomeQuery {
 	}
 }
 
-func FindMaxPchomePage(keyword string) int {
+func FindMaxPchomePage(ctx context.Context, keyword string) (int, error) {
 	var client = &http.Client{Timeout: 10 * time.Second}
 
 	request, err := http.NewRequest("GET", "http://ecshweb.pchome.com.tw/search/v3.3/all/results?sort=rnk", nil)
@@ -56,34 +57,27 @@ func FindMaxPchomePage(keyword string) int {
 
 	response, err := client.Get(url)
 	if err != nil {
-		fmt.Println("Can not get response")
-		fmt.Println(err)
+		errors.Wrapf(err, "failed to get response from %s", url)
 	}
 
 	if err := json.NewDecoder(response.Body).Decode(&maxPage); err != nil {
-		fmt.Println("Can not decode JSON")
-		fmt.Println(err)
+		errors.Wrap(err, "failed to decode json")
 	}
 
 	defer response.Body.Close()
-	return maxPage.MaxPage
+	return maxPage.MaxPage, nil
 }
 
-func (q *PChomeQuery) Crawl(page int, finishQuery chan bool, newProducts chan *sql.Product, wgJob *sync.WaitGroup) {
+func (q *PChomeQuery) Crawl(ctx context.Context, page int, finishQuery chan bool, newProducts chan *sql.Product, wgJob *sync.WaitGroup) error {
 	var client = &http.Client{Timeout: 10 * time.Second}
 
-	//  minPrice := 10000
-	//  maxPrice := 30000
-
-	request, err := http.NewRequest("GET", "http://ecshweb.pchome.com.tw/search/v3.3/all/results?sort=rnk", nil)
+	request, err := http.NewRequestWithContext(ctx, "GET", "http://ecshweb.pchome.com.tw/search/v3.3/all/results?sort=rnk", nil)
 	if err != nil {
-		fmt.Println("Can not generate request")
-		fmt.Println(err)
+		fmt.Println(errors.Wrap(err, "Can not generate request"))
 	}
 
 	query := request.URL.Query()
 	query.Add("q", q.keyword)
-	//  query.Add("price", fmt.Sprintf("%d-%d", minPrice, maxPrice))
 
 	var result PchomeResponse
 	query.Set("page", fmt.Sprintf("%d", page))
@@ -114,4 +108,5 @@ func (q *PChomeQuery) Crawl(page int, finishQuery chan bool, newProducts chan *s
 		newProducts <- &tempProduct
 	}
 	wgJob.Done()
+	return nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -39,7 +40,7 @@ func (s *Server) GetUserInfo(in *pb.UserRequest, stream pb.UserService_GetUserIn
 	p.Products = make(chan pb.UserResponse, 1000)
 	p.FinishRequest = make(chan int, 1)
 
-	ctx, _ := context.WithTimeout(stream.Context(), 100*time.Second)
+	ctx, _ := context.WithTimeout(stream.Context(), 10*time.Minute)
 
 	// Output it directly, if there are data in the database, otherwise search for data on the internet.
 	go func() {
@@ -85,7 +86,7 @@ func (s *Server) GetUserInfo(in *pb.UserRequest, stream pb.UserService_GetUserIn
 			return nil
 		case <-ctx.Done():
 			log.Println("Time out")
-			return nil
+			return errors.New("time out")
 		}
 	}
 }
