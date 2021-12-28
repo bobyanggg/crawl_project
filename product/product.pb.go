@@ -181,8 +181,8 @@ var file_product_proto_goTypes = []interface{}{
 	(*UserResponse)(nil), // 1: UserResponse
 }
 var file_product_proto_depIdxs = []int32{
-	0, // 0: UserService.GetUserInfo:input_type -> UserRequest
-	1, // 1: UserService.GetUserInfo:output_type -> UserResponse
+	0, // 0: UserService.GetProduct:input_type -> UserRequest
+	1, // 1: UserService.GetProduct:output_type -> UserResponse
 	1, // [1:2] is the sub-list for method output_type
 	0, // [0:1] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
@@ -253,7 +253,7 @@ const _ = grpc.SupportPackageIsVersion6
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type UserServiceClient interface {
-	GetUserInfo(ctx context.Context, in *UserRequest, opts ...grpc.CallOption) (UserService_GetUserInfoClient, error)
+	GetProduct(ctx context.Context, in *UserRequest, opts ...grpc.CallOption) (UserService_GetProductClient, error)
 }
 
 type userServiceClient struct {
@@ -264,12 +264,12 @@ func NewUserServiceClient(cc grpc.ClientConnInterface) UserServiceClient {
 	return &userServiceClient{cc}
 }
 
-func (c *userServiceClient) GetUserInfo(ctx context.Context, in *UserRequest, opts ...grpc.CallOption) (UserService_GetUserInfoClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_UserService_serviceDesc.Streams[0], "/UserService/GetUserInfo", opts...)
+func (c *userServiceClient) GetProduct(ctx context.Context, in *UserRequest, opts ...grpc.CallOption) (UserService_GetProductClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_UserService_serviceDesc.Streams[0], "/UserService/GetProduct", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &userServiceGetUserInfoClient{stream}
+	x := &userServiceGetProductClient{stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -279,16 +279,16 @@ func (c *userServiceClient) GetUserInfo(ctx context.Context, in *UserRequest, op
 	return x, nil
 }
 
-type UserService_GetUserInfoClient interface {
+type UserService_GetProductClient interface {
 	Recv() (*UserResponse, error)
 	grpc.ClientStream
 }
 
-type userServiceGetUserInfoClient struct {
+type userServiceGetProductClient struct {
 	grpc.ClientStream
 }
 
-func (x *userServiceGetUserInfoClient) Recv() (*UserResponse, error) {
+func (x *userServiceGetProductClient) Recv() (*UserResponse, error) {
 	m := new(UserResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -298,39 +298,39 @@ func (x *userServiceGetUserInfoClient) Recv() (*UserResponse, error) {
 
 // UserServiceServer is the server API for UserService service.
 type UserServiceServer interface {
-	GetUserInfo(*UserRequest, UserService_GetUserInfoServer) error
+	GetProduct(*UserRequest, UserService_GetProductServer) error
 }
 
 // UnimplementedUserServiceServer can be embedded to have forward compatible implementations.
 type UnimplementedUserServiceServer struct {
 }
 
-func (*UnimplementedUserServiceServer) GetUserInfo(*UserRequest, UserService_GetUserInfoServer) error {
-	return status.Errorf(codes.Unimplemented, "method GetUserInfo not implemented")
+func (*UnimplementedUserServiceServer) GetProduct(*UserRequest, UserService_GetProductServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetProduct not implemented")
 }
 
 func RegisterUserServiceServer(s *grpc.Server, srv UserServiceServer) {
 	s.RegisterService(&_UserService_serviceDesc, srv)
 }
 
-func _UserService_GetUserInfo_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _UserService_GetProduct_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(UserRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(UserServiceServer).GetUserInfo(m, &userServiceGetUserInfoServer{stream})
+	return srv.(UserServiceServer).GetProduct(m, &userServiceGetProductServer{stream})
 }
 
-type UserService_GetUserInfoServer interface {
+type UserService_GetProductServer interface {
 	Send(*UserResponse) error
 	grpc.ServerStream
 }
 
-type userServiceGetUserInfoServer struct {
+type userServiceGetProductServer struct {
 	grpc.ServerStream
 }
 
-func (x *userServiceGetUserInfoServer) Send(m *UserResponse) error {
+func (x *userServiceGetProductServer) Send(m *UserResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -340,8 +340,8 @@ var _UserService_serviceDesc = grpc.ServiceDesc{
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "GetUserInfo",
-			Handler:       _UserService_GetUserInfo_Handler,
+			StreamName:    "GetProduct",
+			Handler:       _UserService_GetProduct_Handler,
 			ServerStreams: true,
 		},
 	},

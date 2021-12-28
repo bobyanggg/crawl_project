@@ -38,9 +38,11 @@ func (q *MomoQuery) GetQuerySrc() *Query {
 func (q *MomoQuery) Crawl(ctx context.Context, page int, finishQuery chan bool, newProducts chan *sql.Product, wgJob *sync.WaitGroup) {
 
 	qSrc := q.GetQuerySrc()
-	request, err := http.NewRequestWithContext(ctx, "GET", "https://m.momoshop.com.tw/search.momo", nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://m.momoshop.com.tw/search.momo", nil)
 	if err != nil {
 		log.Println(errors.Wrap(err, "Can not generate request"))
+		wgJob.Done()
+		return
 	}
 	query := request.URL.Query()
 	query.Add("searchKeyword", qSrc.Keyword)

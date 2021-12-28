@@ -28,7 +28,7 @@ func main() {
 	defer conn.Close()
 
 	client := pb.NewUserServiceClient(conn)
-	stream, err := client.GetUserInfo(context.Background(), &pb.UserRequest{KeyWord: searchKeyWord})
+	stream, err := client.GetProduct(context.Background(), &pb.UserRequest{KeyWord: searchKeyWord})
 	if err != nil {
 		log.Fatal(err)
 	}

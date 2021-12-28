@@ -8,6 +8,7 @@ import (
 	"net"
 	"time"
 
+	"dev/crawl_project/crawler"
 	"dev/crawl_project/model"
 	pb "dev/crawl_project/product"
 	"dev/crawl_project/sql"
@@ -20,6 +21,8 @@ import (
 // SQL setting initialize from /grpc_service/sql
 
 type Server struct {
+	jobsChan     map[crawler.Web]chan *worker.Job
+	workerConfig worker.WorkerConfig
 }
 
 type ProductGRPC struct {
@@ -27,7 +30,7 @@ type ProductGRPC struct {
 	FinishRequest chan int
 }
 
-func (s *Server) GetUserInfo(in *pb.UserRequest, stream pb.UserService_GetUserInfoServer) error {
+func (s *Server) GetProduct(in *pb.UserRequest, stream pb.UserService_GetProductServer) error {
 	log.Println("Search for", in.KeyWord)
 
 	// Search in the database.
@@ -55,8 +58,9 @@ func (s *Server) GetUserInfo(in *pb.UserRequest, stream pb.UserService_GetUserIn
 				}
 			}
 		} else {
+
 			// Search for keyword in webs, then push the data to grpc output buffer.
-			worker.Queue(ctx, in.KeyWord, p.Products)
+			worker.Queue(ctx, in.KeyWord, p.Products, s.workerConfig, s.jobsChan)
 		}
 		// Check all products have been send, then finish this grpc request.
 		for {
@@ -93,6 +97,21 @@ func (s *Server) GetUserInfo(in *pb.UserRequest, stream pb.UserService_GetUserIn
 
 func main() {
 	log.Println("---------- Service started ---------")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// open workerConfig
+	var workerConfig worker.WorkerConfig
+	if err := model.OpenJsonEncodeStruct("../config/worker.json", &workerConfig); err != nil {
+		log.Fatal("failed to get data from worker.json", err)
+	}
+
+	// Start the workers
+	jobsChan := make(map[crawler.Web]chan *worker.Job)
+	// Make jobsChan
+	for _, web := range worker.Webs {
+		jobsChan[web] = make(chan *worker.Job, workerConfig.WorkerNum)
+	}
+	worker.StartWorker(ctx, jobsChan, workerConfig)
 
 	// Read the grpc config.
 	grpcConfig, err := model.OpenJson("../config/grpc.json")
@@ -102,7 +121,7 @@ func main() {
 
 	// Start the GRPC service.
 	grpcServer := grpc.NewServer()
-	pb.RegisterUserServiceServer(grpcServer, &Server{})
+	pb.RegisterUserServiceServer(grpcServer, &Server{jobsChan: jobsChan, workerConfig: workerConfig})
 	listen, err := net.Listen("tcp", fmt.Sprintf(":%v", grpcConfig["port"]))
 	if err != nil {
 		log.Fatal(err)
