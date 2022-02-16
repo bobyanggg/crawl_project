@@ -43,7 +43,7 @@ func (s *Server) GetProduct(in *pb.UserRequest, stream pb.UserService_GetProduct
 	p.Products = make(chan pb.UserResponse, 1000)
 	p.FinishRequest = make(chan int, 1)
 
-	ctx, _ := context.WithTimeout(stream.Context(), 10*time.Minute)
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Minute)
 
 	// Output it directly, if there are data in the database, otherwise search for data on the internet.
 	go func() {
@@ -97,7 +97,8 @@ func (s *Server) GetProduct(in *pb.UserRequest, stream pb.UserService_GetProduct
 
 func main() {
 	log.Println("---------- Service started ---------")
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, _ := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	// open workerConfig
 	var workerConfig worker.WorkerConfig
@@ -109,7 +110,7 @@ func main() {
 	jobsChan := make(map[crawler.Web]chan *worker.Job)
 	// Make jobsChan
 	for _, web := range worker.Webs {
-		jobsChan[web] = make(chan *worker.Job, workerConfig.WorkerNum)
+		jobsChan[web] = make(chan *worker.Job, 1)
 	}
 	worker.StartWorker(ctx, jobsChan, workerConfig)
 

@@ -81,7 +81,7 @@ func (q *PChomeQuery) FindMaxPage(ctx context.Context, totalWebProduct int) (int
 	return maxPage.MaxPage, nil
 }
 
-func (q *PChomeQuery) Crawl(ctx context.Context, page int, finishQuery chan bool, newProducts chan *sql.Product, wgJob *sync.WaitGroup) {
+func (q *PChomeQuery) Crawl(ctx context.Context, page int, newProducts chan *sql.Product, wgJob *sync.WaitGroup) {
 	qSrc := q.GetQuerySrc()
 
 	var client = &http.Client{Timeout: 10 * time.Second}

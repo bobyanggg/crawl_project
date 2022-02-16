@@ -8,7 +8,7 @@ import (
 
 type Crawler interface {
 	// Find product information from the website
-	Crawl(ctx context.Context, page int, finishQuery chan bool, newProducts chan *sql.Product, wgJob *sync.WaitGroup)
+	Crawl(ctx context.Context, page int, newProducts chan *sql.Product, wgJob *sync.WaitGroup)
 	FindMaxPage(ctx context.Context, totalWebProduct int) (int, error)
 	GetQuerySrc() *Query
 }

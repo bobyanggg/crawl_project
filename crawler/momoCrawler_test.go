@@ -14,7 +14,6 @@ func Test_Crawl_Ipad(t *testing.T) {
 	ctx := context.Background()
 	m := NewMomoQuery("ipad")
 	page := 1
-	finishQuery := make(chan bool)
 	newProducts := make(chan *sql.Product)
 	wgJob := &sync.WaitGroup{}
 	results := []sql.Product{}
@@ -26,7 +25,7 @@ func Test_Crawl_Ipad(t *testing.T) {
 
 	}()
 
-	m.Crawl(ctx, page, finishQuery, newProducts, wgJob)
+	m.Crawl(ctx, page, newProducts, wgJob)
 	fmt.Println(results)
 	if len(results) == 0 {
 		t.Error("error in crawl")

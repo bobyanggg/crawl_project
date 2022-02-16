@@ -35,7 +35,7 @@ func (q *MomoQuery) GetQuerySrc() *Query {
 	return q.Query
 }
 
-func (q *MomoQuery) Crawl(ctx context.Context, page int, finishQuery chan bool, newProducts chan *sql.Product, wgJob *sync.WaitGroup) {
+func (q *MomoQuery) Crawl(ctx context.Context, page int, newProducts chan *sql.Product, wgJob *sync.WaitGroup) {
 
 	qSrc := q.GetQuerySrc()
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://m.momoshop.com.tw/search.momo", nil)

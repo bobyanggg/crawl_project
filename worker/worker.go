@@ -122,8 +122,8 @@ func send(ctx context.Context, wc crawler.Crawler, wgJob *sync.WaitGroup, newPro
 		return errors.Wrapf(err, "failed to get max page")
 	}
 
+	wgJob.Add(maxPage)
 	for i := 1; i <= maxPage; i++ {
-		wgJob.Add(1)
 		input := &Job{
 			web:         qSrc.Web,
 			webCrawler:  wc,
@@ -142,17 +142,15 @@ func send(ctx context.Context, wc crawler.Crawler, wgJob *sync.WaitGroup, newPro
 
 // worker starts workers that listen to jobsChan in background
 func worker(ctx context.Context, num int, web crawler.Web, jobChan chan *Job, sleepTime int) {
-
 	log.Println("start the worker", num, web)
 
 	for {
 		select {
 		case job := <-jobChan:
 			// n := getRandomTime()
-			finishQuery := make(chan bool)
 			log.Printf("%d starting on %v, Sleeping %d seconds...\n", num, job, sleepTime)
 
-			job.webCrawler.Crawl(ctx, job.page, finishQuery, job.newProducts, job.wgJob)
+			job.webCrawler.Crawl(ctx, job.page, job.newProducts, job.wgJob)
 			log.Println("finished", job.web, job.page)
 			time.Sleep(time.Duration(sleepTime) * time.Second)
 			// close workers
