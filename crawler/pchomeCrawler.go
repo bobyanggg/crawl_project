@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"dev/crawl_project/sql"
+	"github.com/bobyanggg/crawl_project/sql"
 
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"

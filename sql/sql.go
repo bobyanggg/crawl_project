@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"dev/crawl_project/model"
+	"github.com/bobyanggg/crawl_project/model"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -57,6 +57,10 @@ func init() {
 			<-t.C
 		}
 	}()
+
+	if err := Create(); err != nil {
+		log.Fatal("Failed to create product table: ", err)
+	}
 }
 
 // Create the table products and keyword.

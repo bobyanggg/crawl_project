@@ -2,8 +2,9 @@ package crawler
 
 import (
 	"context"
-	"dev/crawl_project/sql"
 	"sync"
+
+	"github.com/bobyanggg/crawl_project/sql"
 )
 
 type Crawler interface {
@@ -22,8 +23,7 @@ type Web string
 
 const (
 	Pchome Web = "pchome"
-	Momo       = "momo"
-	Yahoo      = "yahoo"
+	Momo   Web = "momo"
 )
 
 func newQuery(web Web, keyWord string) *Query {

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"dev/crawl_project/sql"
+	"github.com/bobyanggg/crawl_project/sql"
 )
 
 func Test_Crawl_Ipad(t *testing.T) {

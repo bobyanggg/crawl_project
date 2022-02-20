@@ -8,11 +8,11 @@ import (
 	"net"
 	"time"
 
-	"dev/crawl_project/crawler"
-	"dev/crawl_project/model"
-	pb "dev/crawl_project/product"
-	"dev/crawl_project/sql"
-	"dev/crawl_project/worker"
+	"github.com/bobyanggg/crawl_project/crawler"
+	"github.com/bobyanggg/crawl_project/model"
+	pb "github.com/bobyanggg/crawl_project/product"
+	"github.com/bobyanggg/crawl_project/sql"
+	"github.com/bobyanggg/crawl_project/worker"
 
 	"google.golang.org/grpc"
 )
@@ -110,7 +110,7 @@ func main() {
 	jobsChan := make(map[crawler.Web]chan *worker.Job)
 	// Make jobsChan
 	for _, web := range worker.Webs {
-		jobsChan[web] = make(chan *worker.Job, 1)
+		jobsChan[web] = make(chan *worker.Job, 10)
 	}
 	worker.StartWorker(ctx, jobsChan, workerConfig)
 

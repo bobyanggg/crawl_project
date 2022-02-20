@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"dev/crawl_project/crawler"
-	pb "dev/crawl_project/product"
+	"github.com/bobyanggg/crawl_project/crawler"
+	pb "github.com/bobyanggg/crawl_project/product"
 
-	"dev/crawl_project/sql"
+	"github.com/bobyanggg/crawl_project/sql"
 
 	"github.com/pkg/errors"
 )
@@ -75,7 +75,6 @@ func Queue(ctx context.Context, keyWord string, pProduct chan pb.UserResponse, w
 	}()
 
 	wgJob := &sync.WaitGroup{}
-	// call send tp send jobs
 	anyResponse := false
 
 	wgSend := &sync.WaitGroup{}
@@ -101,10 +100,12 @@ func Queue(ctx context.Context, keyWord string, pProduct chan pb.UserResponse, w
 		}(web)
 	}
 	wgSend.Wait() //avoid finish before send is finished
+	fmt.Println("HERE!!!!!!!!!!!!!!!!!!!!!!!!!!")
 	if !anyResponse {
 		cleanupCancel()
 		return
 	}
+
 	wgJob.Wait()
 }
 
@@ -132,9 +133,9 @@ func send(ctx context.Context, wc crawler.Crawler, wgJob *sync.WaitGroup, newPro
 			wgJob:       wgJob,
 			newProducts: newProducts,
 		}
-		fmt.Println("In queue", input)
+		fmt.Printf("In queue %s at %s, page %d\n", input.keyword, input.web, input.page)
 		jobChan <- input
-		log.Println("already send input value:", input)
+		log.Printf("Already send input %s at %s, page %d\n", input.keyword, input.web, input.page)
 	}
 
 	return nil

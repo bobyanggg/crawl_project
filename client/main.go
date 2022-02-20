@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	pb "dev/crawl_project/product"
+	pb "github.com/bobyanggg/crawl_project/product"
 
 	"google.golang.org/grpc"
 )
