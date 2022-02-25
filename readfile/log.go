@@ -1,4 +1,4 @@
-package model
+package readfile
 
 import (
 	"log"

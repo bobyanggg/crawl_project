@@ -7,8 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bobyanggg/crawl_project/model"
-
+	"github.com/bobyanggg/crawl_project/readfile"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -25,7 +24,7 @@ var Conn *sql.DB
 
 func init() {
 	// Read the sql config.
-	sqlConfig, err := model.OpenJson("../config/sql.json")
+	sqlConfig, err := readfile.OpenJson("../config/sql.json")
 	if err != nil {
 		log.Fatal(err)
 	}

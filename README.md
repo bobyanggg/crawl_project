@@ -18,5 +18,9 @@ gRPC: https://pjchender.dev/golang/grpc-getting-started/<br/>
 8. Run “go run main.go [your keyword]” to start searching.
 9. You'll se response in your terminal and data will be stored in DB if the keyword is never searched.
 ![image](https://github.com/bobyanggg/crawl_project/blob/main/resource/image/response.png)
+10. You can modify configs in github.com/bobyanggg/crawl_project/config
+  * worker: Number of jobs per website
+  * maxProduct: Maximum results
+  * sleepTime: Time sleep between jobs that avoids being detected as DDOS attack
 
 Enjoy!!!

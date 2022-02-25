@@ -100,7 +100,6 @@ func Queue(ctx context.Context, keyWord string, pProduct chan pb.UserResponse, w
 		}(web)
 	}
 	wgSend.Wait() //avoid finish before send is finished
-	fmt.Println("HERE!!!!!!!!!!!!!!!!!!!!!!!!!!")
 	if !anyResponse {
 		cleanupCancel()
 		return

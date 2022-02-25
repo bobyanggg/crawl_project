@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"time"
 
 	"github.com/bobyanggg/crawl_project/crawler"
-	"github.com/bobyanggg/crawl_project/model"
 	pb "github.com/bobyanggg/crawl_project/product"
+	"github.com/bobyanggg/crawl_project/readfile"
 	"github.com/bobyanggg/crawl_project/sql"
 	"github.com/bobyanggg/crawl_project/worker"
 
@@ -43,7 +42,7 @@ func (s *Server) GetProduct(in *pb.UserRequest, stream pb.UserService_GetProduct
 	p.Products = make(chan pb.UserResponse, 1000)
 	p.FinishRequest = make(chan int, 1)
 
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx := context.Background()
 
 	// Output it directly, if there are data in the database, otherwise search for data on the internet.
 	go func() {
@@ -97,12 +96,11 @@ func (s *Server) GetProduct(in *pb.UserRequest, stream pb.UserService_GetProduct
 
 func main() {
 	log.Println("---------- Service started ---------")
-	ctx, _ := context.WithCancel(context.Background())
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// open workerConfig
 	var workerConfig worker.WorkerConfig
-	if err := model.OpenJsonEncodeStruct("../config/worker.json", &workerConfig); err != nil {
+	if err := readfile.OpenJsonEncodeStruct("../config/worker.json", &workerConfig); err != nil {
 		log.Fatal("failed to get data from worker.json", err)
 	}
 
@@ -115,7 +113,7 @@ func main() {
 	worker.StartWorker(ctx, jobsChan, workerConfig)
 
 	// Read the grpc config.
-	grpcConfig, err := model.OpenJson("../config/grpc.json")
+	grpcConfig, err := readfile.OpenJson("../config/grpc.json")
 	if err != nil {
 		log.Fatal(err)
 	}
