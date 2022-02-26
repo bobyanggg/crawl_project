@@ -1,5 +1,5 @@
 This application build a server that returns crawling result from pchome and momo e-shop, which is the most popular electronic commerce platform in Taiwan.
-The data is crawled applying multithread(concurrency), which enables the server to return results in multiple pages fast.
+The data is crawled applying multithread(parellelism), which enables the server to return results in multiple pages fast.
 
 ![image](https://github.com/bobyanggg/crawl_project/blob/main/resource/image/crawl_project.png)
 
