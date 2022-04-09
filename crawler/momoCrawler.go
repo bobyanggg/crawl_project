@@ -55,7 +55,7 @@ func (q *MomoQuery) Crawl(ctx context.Context, page int, newProducts chan *sql.P
 	)
 
 	c.OnHTML("li[class=goodsItemLi]", func(e *colly.HTMLElement) {
-		tempProduct := sql.Product{}
+		tempProduct := sql.Product{Website: string(Momo)}
 		tempProduct.Name = e.ChildText("h3.prdName")
 		tempProduct.Word = qSrc.Keyword
 		tempPrice, err := strconv.Atoi(e.ChildText("b.price"))

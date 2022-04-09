@@ -47,7 +47,7 @@ func (q *PChomeQuery) FindMaxPage(ctx context.Context, totalWebProduct int) (int
 	calPage := totalWebProduct / productsPerPagePchome
 	var client = &http.Client{Timeout: 10 * time.Second}
 
-	request, err := http.NewRequest("GET", "http://ecshweb.pchome.com.tw/search/v3.3/all/results?sort=rnk", nil)
+	request, err := http.NewRequest("GET", "https://ecshweb.pchome.com.tw/search/v3.3/all/results?sort=rnk", nil)
 	if err != nil {
 		fmt.Println("Can not generate request")
 		fmt.Println(err)
@@ -60,16 +60,19 @@ func (q *PChomeQuery) FindMaxPage(ctx context.Context, totalWebProduct int) (int
 	request.URL.RawQuery = query.Encode()
 	url := request.URL.String()
 
+	fmt.Println("URL: ", url)
+
 	response, err := client.Get(url)
 	if err != nil {
 		errors.Wrapf(err, "failed to get response from %s", url)
 	}
+	defer response.Body.Close()
 
 	if err := json.NewDecoder(response.Body).Decode(&maxPage); err != nil {
 		errors.Wrap(err, "failed to decode json")
 	}
 
-	defer response.Body.Close()
+	fmt.Println("max page: ", maxPage)
 
 	log.Printf("total page of keyword %s in %s is: %d\n", q.Keyword, q.Web, maxPage.MaxPage)
 	log.Printf("max page allowed: %d", calPage)
@@ -86,7 +89,7 @@ func (q *PChomeQuery) Crawl(ctx context.Context, page int, newProducts chan *sql
 
 	var client = &http.Client{Timeout: 10 * time.Second}
 
-	request, err := http.NewRequestWithContext(ctx, "GET", "http://ecshweb.pchome.com.tw/search/v3.3/all/results?sort=rnk", nil)
+	request, err := http.NewRequestWithContext(ctx, "GET", "https://ecshweb.pchome.com.tw/search/v3.3/all/results?sort=rnk", nil)
 	if err != nil {
 		fmt.Println(errors.Wrap(err, "Can not generate request"))
 	}
@@ -118,6 +121,7 @@ func (q *PChomeQuery) Crawl(ctx context.Context, page int, newProducts chan *sql
 			Price:      prod.Price,
 			ImageURL:   "https://b.ecimg.tw" + prod.PicS,
 			ProductURL: "https://24h.pchome.com.tw/prod/" + prod.Id,
+			Website:    string(Pchome),
 		}
 		newProducts <- &tempProduct
 	}

@@ -62,6 +62,7 @@ func Queue(ctx context.Context, keyWord string, pProduct chan pb.UserResponse, w
 					Price:      int32(product.Price),
 					ImageURL:   product.ImageURL,
 					ProductURL: product.ProductURL,
+					WebSite:    product.Website,
 				}
 			case <-ctx.Done():
 				if ctx.Err() != context.Canceled {

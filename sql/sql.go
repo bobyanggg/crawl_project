@@ -18,6 +18,7 @@ type Product struct {
 	Price      int
 	ImageURL   string
 	ProductURL string
+	Website    string
 }
 
 var Conn *sql.DB
@@ -70,6 +71,7 @@ func Create() error {
 		price INT NOT NULL DEFAULT 0,
 		imageURL VARCHAR(255) NOT NULL DEFAULT "",
 		productURL VARCHAR(255) NOT NULL DEFAULT "",
+		webSite VARCHAR(255) NOT NULL DEFAULT "",
 		updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 		PRIMARY KEY (productID)
 		);`
@@ -92,7 +94,7 @@ func Create() error {
 }
 
 func Insert(product Product) error {
-	_, err := Conn.Exec("INSERT INTO products (productID, name, price, imageURL, productURL) VALUES (?, ?, ?, ?, ?)", product.ProductID, product.Name, product.Price, product.ImageURL, product.ProductURL)
+	_, err := Conn.Exec("INSERT INTO products (productID, name, price, imageURL, productURL,webSite) VALUES (?, ?, ?, ?, ?, ?)", product.ProductID, product.Name, product.Price, product.ImageURL, product.ProductURL, product.Website)
 	if err != nil {
 		if strings.Contains(err.Error(), "1062") {
 			fmt.Println("already exists")
@@ -109,7 +111,7 @@ func Insert(product Product) error {
 }
 
 func Select(keyword string) ([]Product, error) {
-	sql := fmt.Sprintf("SELECT name, price, imageURL, productURL FROM products WHERE productID IN (SELECT productID FROM keyword WHERE word = '%s')", keyword)
+	sql := fmt.Sprintf("SELECT name, price, imageURL, productURL, webSite FROM products WHERE productID IN (SELECT productID FROM keyword WHERE word = '%s')", keyword)
 	res, err := Conn.Query(sql)
 	if err != nil {
 		return nil, err
@@ -119,7 +121,7 @@ func Select(keyword string) ([]Product, error) {
 	var products []Product
 	for res.Next() {
 		var product Product
-		if err := res.Scan(&product.Name, &product.Price, &product.ImageURL, &product.ProductURL); err != nil {
+		if err := res.Scan(&product.Name, &product.Price, &product.ImageURL, &product.ProductURL, &product.Website); err != nil {
 			return nil, err
 		}
 		//fmt.Println(product)

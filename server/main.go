@@ -54,6 +54,7 @@ func (s *Server) GetProduct(in *pb.UserRequest, stream pb.UserService_GetProduct
 					Price:      int32(product.Price),
 					ImageURL:   product.ImageURL,
 					ProductURL: product.ProductURL,
+					WebSite:    product.Website,
 				}
 			}
 		} else {

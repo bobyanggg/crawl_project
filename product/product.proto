@@ -3,7 +3,7 @@ syntax = "proto3";
 option go_package = ".";
 
 service UserService {
-    rpc GetUserInfo (UserRequest) returns (stream UserResponse);
+    rpc GetProduct (UserRequest) returns (stream UserResponse);
 }
 
 message UserRequest {
@@ -15,4 +15,5 @@ message UserResponse {
     int32 price = 2;
     string imageURL = 3;
     string productURL = 4;
+    string webSite = 5;
 }

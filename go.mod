@@ -7,6 +7,7 @@ require (
 	github.com/chromedp/chromedp v0.7.8
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gocolly/colly v1.2.0
+	github.com/julienschmidt/httprouter v1.3.0
 	github.com/pkg/errors v0.9.1
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 	google.golang.org/grpc v1.44.0
