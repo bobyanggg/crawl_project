@@ -58,7 +58,6 @@ func (s *Server) GetProduct(in *pb.UserRequest, stream pb.UserService_GetProduct
 				}
 			}
 		} else {
-
 			// Search for keyword in webs, then push the data to grpc output buffer.
 			worker.Queue(ctx, in.KeyWord, p.Products, s.workerConfig, s.jobsChan)
 		}

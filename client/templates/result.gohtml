@@ -12,6 +12,16 @@
 		<input name="keyWord" type="text" placeholder="Search keyword...">
 		<input type="submit">
 	</form>
+
+    <form action="/sorter" method="POST">
+        <select name="sorter">
+            <option value="">choose sort</option>
+            <option value="lessFirst">less price</option>
+            <option value="higherFirst">higher price</option>
+        </select>
+        <button name="sorter" type="submit">sort</button>
+    </form>
+
     <hr>
 
     <div class="row">
@@ -19,6 +29,9 @@
 
             <div class="panel-heading">
                 <h3 class="panel-title">{{.Title}}</h3>
+
+
+
             </div>
             
             <table class="table">
