@@ -3,7 +3,7 @@ The data is crawled applying multithread(parellelism), which enables the server 
 
 Sample website on AWS: http://18.144.99.229/
 
-![image](https://github.com/bobyanggg/crawl_project/blob/main/resource/image/crawl_project.png)
+<img src="resource/image/crawl_project.png" width="450"></br>
 
 # Get started:
 1. First, mySQL or MariaDB installation is needed.
@@ -19,7 +19,8 @@ gRPC: https://pjchender.dev/golang/grpc-getting-started/<br/>
 7. Go to ‘github.com/bobyanggg/crawl_project/client’.
 8. Run “go run main.go” to start a client that listen to localhost:8080.
 9. Go to localhost:8080, enter your search word, result will be shown with the order of less price first.
-![image](https://github.com/bobyanggg/crawl_project/blob/main/resource/image/crawl_home_page.png)
+<img src="resource/image/crawl_home_page.png" width="450"></br>
+
 10. You can sort the product by it's price.
 11. Data will be stored in DB if the keyword is never searched.
 12. You can modify configs in github.com/bobyanggg/crawl_project/config
